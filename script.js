@@ -26,8 +26,8 @@ let ctxSet = [
     ctx_fg4
 ];
 
-const _w = window.innerWidth;
-const _h = window.innerHeight
+let _w = window.innerWidth;
+let _h = window.innerHeight;
 
 let colors = {
   sky:  '#010001',
@@ -41,7 +41,7 @@ let colors = {
 let pageContainer = document.querySelector('.page-container');
 
 window.addEventListener('load', init);
-window.addEventListener('orientationchange', init);
+window.addEventListener('orientationchange', () => { location.reload(); });
 window.addEventListener('click', () => {
   if (pageContainer.classList.contains('normal-ending')) {
     pageContainer.classList.remove('normal-ending');
@@ -57,24 +57,28 @@ window.addEventListener('click', () => {
 
 
 function init()  {
-  /* initialize the sky (background) canvas */
+  // since init will get called on orientation change, reset them here
+  _w = window.innerWidth;
+  _h = window.innerHeight;  
+
+  // initialize the sky (background) canvas
   sizeCanvas(skyCanvas, _w, _h);
   
+  // initialize each canvas
   for (var i = 1; i < cSet.length; i++) {
-    cSet[i].width = _w * 2;
-    cSet[i].height = _h;
+    sizeCanvas(cSet[i], _w * 3, _h) // cloud canvases are set to 3x the screen width so that they can be cleanly looped
   }
-
-  flyingEls = document.querySelectorAll('.flying');
   
   renderScene();
 }
 
+// helper function to auto-size a canvas
 function sizeCanvas(c, x, y) {
   c.width = x;
   c.height = y;
 }
 
+// render scene is only run once, on init (or orientation change). the canvas elements it draws to are then animated in CSS.
 function renderScene() {
   /* render sky */
   ctx_sky.fillStyle = 'transparent';
@@ -127,19 +131,42 @@ function renderScene() {
   ctx_sky.arc(skyCanvas.width * 0.65, skyCanvas.height * 0.15, 30, 0, Math.PI*2);
   ctx_sky.fill();
   
-  /* render clouds */
-  renderCloudSet(_h * 0.5, ctx_fg4, colors.clouds4, 10, 20, 100);
-  renderCloudSet(_h * 0.65, ctx_fg3, colors.clouds3, 10, 20, 100);
-  renderCloudSet(_h * 0.8, ctx_fg2, colors.clouds2, 10, 20, 100);
-  renderCloudSet(_h * 0.95, ctx_fg1, colors.clouds1, 10, 20, 100);
+  /* render clouds using the renderCloudSet function */
+  renderCloudSet(_h * 0.5, ctx_fg4, colors.clouds4, 8, 12, 100);
+  renderCloudSet(_h * 0.65, ctx_fg3, colors.clouds3, 11, 22, 100);
+  renderCloudSet(_h * 0.8, ctx_fg2, colors.clouds2, 14, 36, 100);
+  renderCloudSet(_h, ctx_fg1, colors.clouds1, 14, 50, 100);
 }
 
+// helper function for distance calculations
 function distToPoint(x1, y1, x2, y2) {
   let a = (x2 - x1) * (x2 - x1);
   let b = (y2 - y1) * (y2 - y1);
   return Math.sqrt(a + b);
 }
 
+// creates a randomized set of clouds
+/*
+------------
+cloudSurface
+a percentage of the height of the canvas, e.g.: _h * 0.95
+sets the minimum possible height of a cloud bank by filling everything from this point and lower with the cloud color
+------------
+ctx
+the canvas rendering context that will be used for drawing
+------------
+color
+the cloud color. this color is also hue shifted via CSS filters (or turned transparent) to produce the different scene colors
+------------
+minM
+the minimum width of a cloud mound
+------------
+maxM
+the maximum width of a cloud mound
+------------
+yVariance
+the maximum difference between subsequent cloud mound heights
+*/
 function renderCloudSet(cloudSurface, ctx, color, minM, maxM, yVariance) {
   ctx.fillStyle = colors;
   ctx.fillRect(0, cloudSurface, _w, _h - cloudSurface);
@@ -147,9 +174,8 @@ function renderCloudSet(cloudSurface, ctx, color, minM, maxM, yVariance) {
   let mX = 0;
   let mY = cloudSurface - Math.round(Math.random() * yVariance);
   let currentM = Math.round(Math.random() * maxM) + minM;
-  while (mX < _w) {
-    createM(ctx, color, mX, mY, currentM, cloudSurface);
-    //mY = cloudSurface - Math.round(Math.random() * yVariance);
+  while (mX < _w || mX == 0) {
+    currentM = Math.round(Math.random() * maxM) + minM;
     if (mY + currentM > cloudSurface) {
       mY -= currentM;
     } else if (mY - currentM < cloudSurface - yVariance) {
@@ -157,18 +183,21 @@ function renderCloudSet(cloudSurface, ctx, color, minM, maxM, yVariance) {
     } else {
       mY = Math.random() < 0.5 ? mY - currentM : mY + currentM;
     }
-    currentM = Math.round(Math.random() * maxM) + minM;
     mX += currentM * 0.6;
+    createM(ctx, color, mX, mY, currentM);
   }
 }
 
-function createM(ctx, color, x, y, r, cloudSurface) {
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
-  ctx.arc(x + _w, y, r, 0, Math.PI * 2);
-  ctx.fill();
-  
-  ctx.fillRect(x - r, y, r * 2, _h);
-  ctx.fillRect((x + _w) - r, y, r * 2, _h);
+// draw clouds. individual cloud mounds are actually a rectangle with a half-circle on top
+function createM(ctx, color, x, y, r) {
+  for (let i = 0; i < 3; i++) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.arc(x + (_w * i), y, r, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.fillRect(x - r, y, r * 2, _h);
+    ctx.fillRect((x - r) + (_w * i), y, r * 2, _h);
+  }
 }
