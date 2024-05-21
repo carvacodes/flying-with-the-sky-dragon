@@ -41,23 +41,26 @@ let colors = {
 let pageContainer = document.querySelector('.page-container');
 
 window.addEventListener('load', init);
-window.addEventListener('orientationchange', () => { location.reload(); });
+window.addEventListener('resize', () => { init() });
 window.addEventListener('click', () => {
   if (pageContainer.classList.contains('normal-ending')) {
     pageContainer.classList.remove('normal-ending');
     pageContainer.classList.add('good-ending');
+    localStorage.setItem('skyDragonScene', 'good-ending');
   } else if (pageContainer.classList.contains('good-ending')) {
     pageContainer.classList.remove('good-ending');
     pageContainer.classList.add('best-ending');
+    localStorage.setItem('skyDragonScene', 'best-ending');
   } else if (pageContainer.classList.contains('best-ending')) {
     pageContainer.classList.remove('best-ending');
     pageContainer.classList.add('normal-ending');
+    localStorage.setItem('skyDragonScene', 'normal-ending');
   }
 })
 
 
 function init()  {
-  // since init will get called on orientation change, reset them here
+  // since init will get called on resize, reset width/height here
   _w = window.innerWidth;
   _h = window.innerHeight;  
 
@@ -70,6 +73,15 @@ function init()  {
   }
   
   renderScene();
+}
+
+// helper function to get the last stored scene from local storage
+function getStoredScene() {
+  let scene = localStorage.getItem('skyDragonScene');
+  if (scene) {
+    pageContainer.classList.remove('normal-ending');
+    pageContainer.classList.add(scene);
+  }
 }
 
 // helper function to auto-size a canvas
